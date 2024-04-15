@@ -1,4 +1,4 @@
----
+rso---
 title: "Figures for Thesis"
 author: "Jack Peterson"
 date: "4/4/2024"
