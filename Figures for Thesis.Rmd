@@ -1,0 +1,472 @@
+---
+title: "Figures for Thesis"
+author: "Jack Peterson"
+date: "4/4/2024"
+output: html_document
+---
+
+```{r}
+x1 <- c(-0.2023002978, -1.168351763)
+x2<-c(0.9623527833,-0.6440045767)
+x3 <- c(2.207842326,-1.586709875)
+x4 <- c(1.26343073, 0.3656269233)
+y1 <- c(0.331366734,2.002725503)
+y2<- c(0.6193523667,2.18798296)
+y3<- c(2.392361335,2.191603337)
+y4<- c(1.27626744,1.660348837)
+
+plot(x1, y1, type="b", col="dark red", pch=c(18,24), xlim=c(-2.5, 2.5), ylim=c(-2.5, 2.5),
+     xlab= "Left/Upstram Side",
+     ylab="Right/Downstream Side", cex.lab=1.1)
+lines(x2, y2, type="b", pch=c(18,24), col="dark red")
+lines(x3, y3, type="b",pch=c(18,24), col="dark red")
+lines(x4, y4, type="b", pch=c(18,24), col="dark red")
+
+# Add a line with slope of 1 through the origin
+abline(a = 0, b = 1, col = "dark gray", lwd = 2, lty = 2)
+grid(lwd = 0.5, lty = 2, col = "gray")
+
+legend("bottomright",
+       legend = c("Steady Swimming", "Cross-flow Swimming"),
+       col = c("dark red", "dark red"), # Color for each line
+       pch=c(18,24))
+```
+```{r}
+means <- matrix(
+  c(11.64875489, -3.62407496, -3.938734076, 2.862175713,  # Steady Swimming for Fish 1, 4, 5, 6
+    20.75163495, 13.44735029, 8.274834863, 9.38687868), # Cross-Flow Swimming for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Steady Swimming", "Cross-Flow Swimming"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+errors <- matrix(
+  c(3.55066138, 4.77983575, 2.186511315, 3.109936783,  # Errors for Steady Swimming for Fish 1, 4, 5, 6
+    5.914255712, 5.915273343, 3.425580717, 4.650586323), # Errors for Cross-Flow Swimming for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Steady Swimming", "Cross-Flow Swimming"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(means - errors)
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors, legend.text=TRUE, 
+              args.legend=list(title="Swimming Type", cex=0.8))
+
+for (group in 1:ncol(means)) {
+    for (bar in 1:nrow(means)) {
+        x_pos <- bp[,group]  # Corrected: Get x positions for bars within the current group
+        
+        y_pos <- means[bar, group]  # Y position of the bar (mean value)
+        err_val <- errors[bar, group]  # Error value for the bar
+        
+        # Determine the exact x position for the current bar
+        x_pos_current <- x_pos[bar]
+        
+        # Draw error bars
+        arrows(x0=x_pos_current, y0=y_pos-err_val, x1=x_pos_current, y1=y_pos+err_val,
+               angle=90, code=3, length=0.05, col="black")
+    }
+}
+abline(h = 0, col = "black", lwd = 0.5)
+title(ylab="Mean Tail Area")
+
+# Significance Star
+group1_col <- bp[1, 1]  # Position of the first column of the first group
+group2_col <- bp[2, 1]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 1] + errors[1, 1]  # End of the error bar for the first column
+y_pos2 <- means[2,1] + errors[2,1]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) - 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos - 0.05, group2_col, y_pos - 0.05, col = "black")
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] + errors[1, 2]  # End of the error bar for the first column
+y_pos2 <- means[2,2] + errors[2,2]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) + 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos - 0.05, group2_col, y_pos - 0.05, col = "black")
+# Significance Star
+group1_col <- bp[1, 3]  # Position of the first column of the first group
+group2_col <- bp[2, 3]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 3] + errors[1, 3]  # End of the error bar for the first column
+y_pos2 <- means[2,3] + errors[2,3]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) + 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos - 0.05, group2_col, y_pos - 0.05, col = "black")
+# Significance Star
+group1_col <- bp[1, 4]  # Position of the first column of the first group
+group2_col <- bp[2, 4]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 4] + errors[1, 4]  # End of the error bar for the first column
+y_pos2 <- means[2,4] + errors[2,4]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) + 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos - 0.05, group2_col, y_pos - 0.05, col = "black")
+```
+
+```{r}
+means <- matrix(
+  c(0.0961041665, 0.53675, 0.05265113868, 0.2538473277,  # Anterior Contra for Fish 1, 4, 5, 6
+    0.1260357143, 0.1825, -0.05190562328, -0.09131477267), # Posterior Contra for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+errors <- matrix(
+  c(0.01357155715, 0.0023726875, 0.07750923835, 0.06379567933,  # Anterior Contra for Fish 1, 4, 5, 6
+    0.0096072262, 0.0049087917, 0.2137885366, 0.1077805557), # Posterior Contra for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+#errors <- sqrt(errors)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(means - errors)
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("bottomleft",legend = c("Anterior", "Posterior"), 
+       fill = bar_colors,title = "Position of Contralateral Electrodes",cex = 0.8)
+for (group in 1:ncol(means)) {
+    for (bar in 1:nrow(means)) {
+        x_pos <- bp[,group]  # Corrected: Get x positions for bars within the current group
+        
+        y_pos <- means[bar, group]  # Y position of the bar (mean value)
+        err_val <- errors[bar, group]  # Error value for the bar
+        
+        # Determine the exact x position for the current bar
+        x_pos_current <- x_pos[bar]
+        
+        # Draw error bars
+        arrows(x0=x_pos_current, y0=y_pos-err_val, x1=x_pos_current, y1=y_pos+err_val,
+               angle=90, code=3, length=0.05, col="black")
+    }
+}
+abline(h = 0, col = "black", lwd = 0.5)
+title(ylab="Time offset between electrodes (s)")
+
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] + errors[1, 2]  # End of the error bar for the first column
+y_pos2 <- means[2,2] + errors[2,2]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) - 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos + 0.05, group2_col, y_pos + 0.05, col = "black")
+```
+```{r}
+means <- matrix(
+  c(0.04625694465, 0.087, 0.4973621033, 0.2980267857,  # Left Ipsi for Fish 1, 4, 5, 6
+    0.2015625, 0.1597152778, 0.5909569443, 0.4035868057), # Right Ipsi for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+errors <- matrix(
+  c(0.0453406677, 0.02069328487, 0.04703376733, 0.09605410133,  # Left Ipsi for Fish 1, 4, 5, 6
+    0.05492279665, 0.0094249426, 0.01842277267, 0.08899229333), # Right Ipsi for Fish 1, 4, 5, 6
+  ncol = 4,  # Four columns representing each fish
+  byrow = TRUE,  # Fill matrix by rows to match the description
+  dimnames = list(c("Left", "Right"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+#errors <- sqrt(errors)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means - errors))
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("topleft",legend = c("Left", "Right"), 
+       fill = bar_colors,title = "Position of Ipsilateral Electrodes",cex = 0.8)
+for (group in 1:ncol(means)) {
+    for (bar in 1:nrow(means)) {
+        x_pos <- bp[,group]  # Corrected: Get x positions for bars within the current group
+        
+        y_pos <- means[bar, group]  # Y position of the bar (mean value)
+        err_val <- errors[bar, group]  # Error value for the bar
+        x_pos_current <- x_pos[bar]
+        arrows(x0=x_pos_current, y0=y_pos-err_val, x1=x_pos_current, y1=y_pos+err_val,
+               angle=90, code=3, length=0.05, col="black")
+    }
+}
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Time offset between electrodes (s)")
+
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] + errors[1, 2]  # End of the error bar for the first column
+y_pos2 <- means[2,2] + errors[2,2]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2) - 0.75
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos + 0.05, group2_col, y_pos + 0.05, col = "black")
+```
+```{r}
+means <- matrix(
+  c(0.0961041665, 0.2199166668, 0.05265113868, 0.2538473277,  # Steady for Fish 1, 4, 5, 6
+    0.6974375, 0.53675, 0.4940654763, 0.5552222223), # Maneuver for Fish 1, 4, 5, 6
+  ncol = 4,byrow = TRUE,  
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+errors <- matrix(
+  c(0.01357155715, 0.0023726875, 0.07750923835, 0.06379567933,  # Steady for Fish 1, 4, 5, 6
+    0.0430425156, 0.002669968833, 0.04259118667, 0.1006017917), # Maneuver for Fish 1, 4, 5, 6
+  ncol = 4,byrow = TRUE,
+  dimnames = list(c("Left", "Right"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+#errors <- sqrt(errors)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means - errors))
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("top",legend = c("Steady Swimming", "Cross-Flow Swimming"), 
+       fill = bar_colors,title = "Swimming Type",cex = 0.8)
+for (group in 1:ncol(means)) {
+    for (bar in 1:nrow(means)) {
+        x_pos <- bp[,group]  # Corrected: Get x positions for bars within the current group
+        
+        y_pos <- means[bar, group]  # Y position of the bar (mean value)
+        err_val <- errors[bar, group]  # Error value for the bar
+        x_pos_current <- x_pos[bar]
+        arrows(x0=x_pos_current, y0=y_pos-err_val, x1=x_pos_current, y1=y_pos+err_val,
+               angle=90, code=3, length=0.05, col="black")
+    }
+}
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Time offset between electrodes (s)")
+
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] + errors[1, 2]  # End of the error bar for the first column
+y_pos2 <- means[2,2] + errors[2,2]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.01
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 1]  # Position of the first column of the first group
+group2_col <- bp[2, 1]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 1] + errors[1, 1]  # End of the error bar for the first column
+y_pos2 <- means[2,1] + errors[2,1]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)-0.01
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 3]  # Position of the first column of the first group
+group2_col <- bp[2, 3]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 3] + errors[1, 3]  # End of the error bar for the first column
+y_pos2 <- means[2,3] + errors[2,3]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.01
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+```
+```{r}
+means <- matrix(
+  c(0.1260357143, 0.056111111, -0.05190562328, -0.09131477267,  # Steady for Fish 1, 4, 5, 6
+    0.06006547635, 0.1825, 0.6408222223, 0.504674537), # Maneuver for Fish 1, 4, 5, 6
+  ncol = 4,byrow = TRUE,  
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+
+errors <- matrix(
+  c(0.0096072262, 0.0049087917, 0.2137885366, 0.1077805557,  # Steady for Fish 1, 4, 5, 6
+    0.02916161105, 0.0060086459, 0.01401744267, 0.03288848067), # Maneuver for Fish 1, 4, 5, 6
+  ncol = 4,byrow = TRUE,
+  dimnames = list(c("Left", "Right"),  # Row names
+                  c("Fish 1", "Fish 4", "Fish 5", "Fish 6"))  # Column names
+)
+#errors <- sqrt(errors)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means - errors))
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("topleft",legend = c("Steady Swimming", "Cross-Flow Swimming"), 
+       fill = bar_colors,title = "Swimming Type",cex = 0.8)
+for (group in 1:ncol(means)) {
+    for (bar in 1:nrow(means)) {
+        x_pos <- bp[,group]  # Corrected: Get x positions for bars within the current group
+        
+        y_pos <- means[bar, group]  # Y position of the bar (mean value)
+        err_val <- errors[bar, group]  # Error value for the bar
+        x_pos_current <- x_pos[bar]
+        arrows(x0=x_pos_current, y0=y_pos-err_val, x1=x_pos_current, y1=y_pos+err_val,
+               angle=90, code=3, length=0.05, col="black")
+    }
+}
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Time offset between electrodes (s)")
+
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] - errors[1, 2]  # End of the error bar for the first column
+y_pos2 <- means[2,2] - errors[2,2]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.1
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 3]  # Position of the first column of the first group
+group2_col <- bp[2, 3]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 3] - errors[1, 3]  # End of the error bar for the first column
+y_pos2 <- means[2,3] - errors[2,3]  # End of the error bar for the second column
+y_pos <- min(y_pos1, y_pos2)+0.01
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 4]  # Position of the first column of the first group
+group2_col <- bp[2, 4]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 4] + errors[1, 4]  # End of the error bar for the first column
+y_pos2 <- means[2,4] + errors[2,4]  # End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.01
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+```
+```{r}
+means <- matrix(
+  c((0.4825195032+0.396029219+0.4911953397+0.2957337585)/4, (0.4615403511+0.5200987377+0.6818273788+0.8262910798)/4, 
+    (0.4580398488+0.496612074+0.7168643359+0.5750184775)/4, (0.4873721739+0.411185403+0.5737276747+0.7264201501)/4,  # Steady for Fish 1, 4, 5, 6
+    (0.4981401243+0.452463743+0.2796339976+0.585273025)/4,(0.4314766317+0.4720172793+0.5198333072+0.6349332566)/4,
+    (0.4720702953+0.5853039273+0.7075153689+0.5497812735)/4,(0.4303896907+0.6284445593+0.5568797566+0.5111338207)/4), # Maneuver for Fish 1, 4, 5, 6
+  ncol = 4,byrow = TRUE,  
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Anterior\nDown Stream", "Posterior\nDown Stream", "Anterior\nUp Stream", "Anterior\nUp Stream"))  # Column names
+)
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means - errors))
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("topleft",legend = c("Steady Swimming", "Cross-Flow Swimming"), 
+       fill = bar_colors,title = "Swimming Type",cex = 0.8)
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Relative Peak Average")
+```
+```{r}
+means <- matrix(
+  c(4.166156062,4.197330803,4.205512769,4.199463078,
+    4.133149393,4.174828333,4.241077568,4.220960946),
+  ncol = 4,byrow = TRUE,  
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Anterior\nDown Stream", "Posterior\nDown Stream",
+                    "Anterior\nUp Stream", "Anterior\nUp Stream"))  # Column names
+)
+means <- means/4
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means - errors))
+max_val <- max(means + errors)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("bottom",legend = c("Steady Swimming", "Cross-Flow Swimming"), 
+       fill = bar_colors,title = "Swimming Type",cex = 0.8)
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Average Duration (s)")
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] # End of the error bar for the first column
+y_pos2 <- means[2,2] # End of the error bar for the second column
+y_pos <- min(y_pos1, y_pos2)+0.05
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 4]  # Position of the first column of the first group
+group2_col <- bp[2, 4]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 4] # End of the error bar for the first column
+y_pos2 <- means[2,4]# End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.05
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+```
+```{r}
+means <- matrix(
+  c(0.02155307368,0.01985038195,0.03077554325,0.0312340065,
+    0.01264952548,0.02228698383,0.04112367898,0.02644637665),
+  ncol = 4,byrow = TRUE,  
+  dimnames = list(c("Anterior", "Posterior"),  # Row names
+                  c("Anterior\nDown Stream", "Posterior\nDown Stream",
+                    "Anterior\nUp Stream", "Anterior\nUp Stream"))  # Column names
+)
+means <- means/4
+
+bar_colors <- c("dark gray", "dark red")
+min_val <- min(0, min(means))
+max_val <- max(means)
+bp <- barplot(means, beside=TRUE, ylim=c(min_val, max_val), 
+              col=bar_colors)
+legend("topleft",legend = c("Steady Swimming", "Cross-Flow Swimming"), 
+       fill = bar_colors,title = "Swimming Type",cex = 0.8)
+abline(h = 0, col = "black", lwd = 1)
+title(ylab="Average Rectified Area")
+# Significance Star
+group1_col <- bp[1, 4]  # Position of the first column of the first group
+group2_col <- bp[2, 4]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 4] # End of the error bar for the first column
+y_pos2 <- means[2,4]# End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.0005
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 1]  # Position of the first column of the first group
+group2_col <- bp[2, 1]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 1] # End of the error bar for the first column
+y_pos2 <- means[2,1]# End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.0005
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 2]  # Position of the first column of the first group
+group2_col <- bp[2, 2]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 2] # End of the error bar for the first column
+y_pos2 <- means[2,2]# End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)+0.0005
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+# Significance Star
+group1_col <- bp[1, 3]  # Position of the first column of the first group
+group2_col <- bp[2, 3]  # Position of the first column of the second group
+x_pos <- mean(c(group1_col, group2_col))
+y_pos1 <- means[1, 3] # End of the error bar for the first column
+y_pos2 <- means[2,3]# End of the error bar for the second column
+y_pos <- max(y_pos1, y_pos2)-0.0005
+text(x_pos, y_pos, "*", cex = 1.5, col = "black")
+segments(group1_col, y_pos, group2_col, y_pos, col = "black")
+```

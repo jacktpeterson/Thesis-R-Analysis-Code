@@ -1,0 +1,1147 @@
+---
+title: "EMG Analysis codes"
+author: "Jack Peterson"
+date: "1/4/2024"
+output: html_document
+---
+
+```{r}
+manoova <- 0
+# Used if trial is a maneuver to invert all trials leftwards
+
+# Trigger check
+breakchecker <-function(x){
+  for (i in 1:(length(x) - 1)) {
+    if(i+1 <= length(x)){
+      if (x[i + 1] < x[i]) {
+        return(i+1)
+      }
+    }  
+  }
+  return(length(x))
+}
+lastbreak <- function(x, checks=15){
+  cb <- 0
+  newfunc <- x
+  for(i in 1:checks){
+    newbreak <- breakchecker(newfunc)
+    if(newbreak == length(newfunc)){
+      break
+    }
+    newfunc <- newfunc[newbreak:length(newfunc)]
+    cb <- cb + newbreak
+  }
+  return(cb)
+}
+trigfinder <- function(x){
+  for (i in 1:(length(x)-1)) {
+      if (is.finite(x[i])==FALSE) {
+        return(i)
+      }
+  }
+  return(length(x))
+}
+
+# Take in Kinovea data
+file_path <- file.choose()
+rd <-read.csv(file_path, header = TRUE)
+# Assign all columns (assumes proper order)
+timek <- rd[,1]
+snoutx <- rd[,2]
+snouty <- rd[,3]
+comx <- rd[,4]
+comy <- rd[,5]
+rpfx <- rd[,6]
+rpfy <- rd[,7]
+lpfx <- rd[,8]
+lpfy <- rd[,9]
+pelfx <- rd[,10]
+pelfy <- rd[,11]
+anfx <- rd[,12]
+anfy <- rd[,13]
+vtx <- rd[,14]
+vty <- rd[,15]
+listofvars <- list(snoutx,snouty,comx,comy,rpfx,rpfy,lpfx,lpfy,pelfx,pelfy,anfx,anfy,vtx,vty)
+
+# Relates all coordinates to fish's snout and center of mass
+# to rid of data points where a variable is (0,0)
+goodones <- rep(1, length(snoutx))
+for (i in 1:length(snoutx)) {
+  breaker <- 0
+  for (j in 1:length(listofvars)) {
+    if (is.nan(listofvars[[j]][i]) && j %% 2 == 0) {
+      if (is.nan(listofvars[[j-1]][i])) {
+        breaker <- 1
+      }
+    }
+  }
+  if (breaker == 1) {
+    goodones[i] <- 0
+  }
+}
+# Create spreadsheet with snout at the origin
+master <- matrix(0, nrow = length(timek), ncol = length(listofvars) + 1)
+for (i in 1:length(timek)) {
+  if (goodones[i] == 1) {
+    master[i,] <- c(timek[i], rep(0, length(listofvars)))
+    master[i, 4:ncol(master)] <- c(comx[i]-snoutx[i], comy[i]-snouty[i], lpfx[i]-snoutx[i], lpfy[i]-snouty[i], rpfx[i]-snoutx[i], rpfy[i]-snouty[i], 
+                                   pelfx[i]-snoutx[i], pelfy[i]-snouty[i], anfx[i]-snoutx[i], anfy[i]-snouty[i], vtx[i]-snoutx[i], vty[i]-snouty[i])
+  }
+}
+master <- master[rowSums(master) != 0, ]
+
+# Shift pec fins, anal fin, ventral tail with respect to their angle relative to snout:gill junction
+nrows <- nrow(master)
+for (i in 1:nrows) {
+  # Left pec fin
+  p1 <- c(master[i, 4], master[i, 5])
+  p2 <- c(master[i, 2], master[i, 3])
+  p3 <- c(master[i, 8], master[i, 9])
+  p21 <- p1 - p2
+  p23 <- p3 - p2
+  cosine_angle <- sum(p21 * p23) / (sqrt(sum(p21^2)) * sqrt(sum(p23^2)))
+  angle <- acos(cosine_angle)
+  if(is.na(angle)){
+    print("Nad left PF")
+  }
+  if (((p3[2]-p2[2]) / (p3[1]-p2[1])) < ((p1[2]-p2[2]) / (p1[1]-p2[1]))) {
+    angle <- -1 * angle
+  }
+  distan <- sqrt(sum((p2 - p3)^2))
+  master[i, 8] <- distan * cos(angle)
+  master[i, 9] <- distan * sin(angle)
+
+  # Right pec fin
+  p1 <- c(master[i, 4], master[i, 5])
+  p2 <- c(master[i, 2], master[i, 3])
+  p3 <- c(master[i, 6], master[i, 7])
+  p21 <- p1 - p2
+  p23 <- p3 - p2
+  cosine_angle <- sum(p21 * p23) / (sqrt(sum(p21^2)) * sqrt(sum(p23^2)))
+  angle <- acos(cosine_angle)
+  if(is.na(angle)){
+    print("Nad right pf")
+  }
+  if (((p3[2]-p2[2]) / (p3[1]-p2[1])) < ((p1[2]-p2[2]) / (p1[1]-p2[1]))) {
+    angle <- -1 * angle
+  }
+  distan <- sqrt(sum((p2 - p3)^2))
+  master[i, 6] <- distan * cos(angle)
+  master[i, 7] <- distan * sin(angle)
+
+  # Pelvic fin
+  p1 <- c(master[i, 4], master[i, 5])
+  p2 <- c(master[i, 2], master[i, 3])
+  p3 <- c(master[i, 10], master[i, 11])
+  p21 <- p1 - p2
+  p23 <- p3 - p2
+  cosine_angle <- sum(p21 * p23) / (sqrt(sum(p21^2)) * sqrt(sum(p23^2)))
+  cosine_angle <- min(max(cosine_angle, -1), 1) # Clamp to [-1, 1]
+  angle <- acos(cosine_angle)
+  if(is.na(angle)){
+    print("pelvic fin")
+  }
+  if (((p3[2]-p2[2]) / (p3[1]-p2[1])) < ((p1[2]-p2[2]) / (p1[1]-p2[1]))) {
+    angle <- -1 * angle
+  }
+  distan <- sqrt(sum((p2 - p3)^2))
+  master[i, 10] <- distan * cos(angle)
+  master[i, 11] <- distan * sin(angle)
+
+  # Anal Fin
+  p1 <- c(master[i, 4], master[i, 5])
+  p2 <- c(master[i, 2], master[i, 3])
+  p3 <- c(master[i, 12], master[i, 13])
+  p21 <- p1 - p2
+  p23 <- p3 - p2
+  cosine_angle <- sum(p21 * p23) / (sqrt(sum(p21^2)) * sqrt(sum(p23^2)))
+  angle <- acos(cosine_angle)
+  if(is.na(angle)){
+    print("Nad anal fin")
+  }
+  if (((p3[2]-p2[2]) / (p3[1]-p2[1])) < ((p1[2]-p2[2]) / (p1[1]-p2[1]))) {
+    angle <- -1 * angle
+  }
+  distan <- sqrt(sum((p2 - p3)^2))
+  master[i, 12] <- distan * cos(angle)
+  master[i, 13] <- distan * sin(angle)
+  
+  # Ventral Tail
+  p1 <- c(master[i, 4], master[i, 5])
+  p2 <- c(master[i, 2], master[i, 3])
+  p3 <- c(master[i, 14], master[i, 15])
+  p21 <- p1 - p2
+  p23 <- p3 - p2
+  cosine_angle <- sum(p21 * p23) / (sqrt(sum(p21^2)) * sqrt(sum(p23^2)))
+  angle <- acos(cosine_angle)
+  if(is.na(angle)){
+    print("Nad tail")
+  }
+  if (((p3[2]-p2[2]) / (p3[1]-p2[1])) < ((p1[2]-p2[2]) / (p1[1]-p2[1]))) {
+    angle <- -1 * angle
+  }
+  distan <- sqrt(sum((p2 - p3)^2))
+  master[i, 14] <- distan * cos(angle)
+  master[i, 15] <- distan * sin(angle)
+}
+
+# Adjust gill junction to also be on the x-axis
+for (i in 1:nrows) {
+  p1 <- c(master[i, 2], master[i, 3])
+  p2 <- c(master[i, 4], master[i, 5])
+  master[i, 4] <- sqrt(sum((p1 - p2)^2))
+  master[i, 5] <- 0
+}
+
+flipit <- 0
+# See if maneuver, then if leftwards, flip rightwards
+if(manoova){
+  if(snouty[1]>snouty[tail(which(!is.nan(snouty)), n = 1)]){
+    # Flip all the y-values
+    flipit <- 1
+    master[,3] <- -1*master[,3]
+    master[,5] <- -1*master[,5]
+    master[,7] <- -1*master[,7]
+    master[,9] <- -1*master[,9]
+    master[,11] <- -1*master[,11]
+    master[,13] <- -1*master[,13]
+    master[,15] <- -1*master[,15]
+  }
+}
+
+# Create a new plot
+plot(master[,2], master[,3], col = "blue", xlim = c(-0.5, max(master[,14])), ylim = c(min(master[,7]), max(master[,9])),
+     xlab = "X", ylab = "Y", main = "Fish Point Movements")
+# Add additional lines
+lines(master[,4], master[,5], col = "red")
+lines(master[,6], master[,7], type="p",col = "green")
+lines(master[,8], master[,9], type="p",col = "green")
+lines(master[,10], master[,11], col = "red")
+lines(master[,12], master[,13], type="p",col = "green")
+lines(master[,14], master[,15], type="p",col = "green")
+
+
+
+plot(master[,1], master[,9], col = "blue",type="l",xlab = "Time", ylab = "Y", main = "Fish Point Movements Example")
+# Fit a spline to the data
+spline_fit <- smooth.spline(x = master[,1], y = master[,9])
+
+# Find the local maxima in the spline
+# Calculate the first derivative
+spline_deriv <- diff(spline_fit$y) / diff(spline_fit$x)
+
+peak_indices <- which(diff(sign(spline_deriv)) < 0) + 1
+
+# Refine the peaks using the threshold
+local_maxima_x <- numeric(0)
+local_maxima_y <- numeric(0)
+
+for (i in 1:length(peak_indices)) {
+  peak_index <- peak_indices[i]
+  # Check if the change in y between the peak and its neighbors is greater than the threshold
+  if (abs(spline_fit$y[peak_index] - spline_fit$y[peak_index - 1]) > 0.0012 &&
+      abs(spline_fit$y[peak_index] - spline_fit$y[peak_index + 1]) > 0.0012) {
+    local_maxima_x <- c(local_maxima_x, spline_fit$x[peak_index])
+    local_maxima_y <- c(local_maxima_y, spline_fit$y[peak_index])
+  }
+}
+lines(spline_fit, col="red", lwd=1)
+for (i in 1:length(local_maxima_x)) {
+  abline(v = local_maxima_x[i], col = "green", lty = 2)
+}
+# Print or plot the local maxima
+maxcoord <- data.frame(X = local_maxima_x, Y = local_maxima_y)
+leftpfavgamplitude <- mean(maxcoord$Y)
+
+
+rectright <- abs(master[,7])
+plot(master[,1], rectright, col = "blue",type="l",xlab = "Time", ylab = "Y", main = "Fish Point Movements Example")
+# Fit a spline to the data
+spline_fit <- smooth.spline(x = master[,1], y = rectright)
+
+# Find the local maxima in the spline
+# Calculate the first derivative
+spline_deriv <- diff(spline_fit$y) / diff(spline_fit$x)
+
+peak_indices <- which(diff(sign(spline_deriv)) < 0) + 1
+
+# Refine the peaks using the threshold
+local_maxima_x <- numeric(0)
+local_maxima_y <- numeric(0)
+
+for (i in 1:length(peak_indices)) {
+  peak_index <- peak_indices[i]
+  # Check if the change in y between the peak and its neighbors is greater than the threshold
+  if (abs(spline_fit$y[peak_index] - spline_fit$y[peak_index - 1]) > 0.0012 &&
+      abs(spline_fit$y[peak_index] - spline_fit$y[peak_index + 1]) > 0.0012) {
+    local_maxima_x <- c(local_maxima_x, spline_fit$x[peak_index])
+    local_maxima_y <- c(local_maxima_y, spline_fit$y[peak_index])
+  }
+}
+lines(spline_fit, col="red", lwd=1)
+for (i in 1:length(local_maxima_x)) {
+  abline(v = local_maxima_x[i], col = "green", lty = 2)
+}
+# Print or plot the local maxima
+maxcoord <- data.frame(X = local_maxima_x, Y = local_maxima_y)
+rightpfavgamplitude <- mean(maxcoord$Y)
+
+# Create empty vectors to store areas
+rareas <- vector()
+lareas <- vector()
+
+# Loop through rows
+for (i in 1:nrow(master)) {
+  # Establishing points along triangle representing pushed water
+  baser <- abs(master[i, 6] - master[i, 4])
+  heightr <- master[i, 7]
+  rareas[[length(rareas) + 1]] <- abs(baser * heightr * 0.5)
+  
+  basel <- abs(master[i, 8] - master[i, 4])
+  heightl <- master[i, 9]
+  lareas[[length(lareas) + 1]] <- abs(basel * heightl * 0.5)
+}
+
+# Calculate averages and standard deviations
+rave <- mean(rareas)
+lave <- mean(lareas)
+rvar <- var(rareas)
+lvar <- var(lareas)
+
+# For graphing areas
+plot(master[, 1], rareas, type = "l", col = "blue", xlab = "Time (au)", ylab = "Area from Fish (cm^2)", main = "Fin Areas with Time")
+lines(master[, 1], lareas, type = "l", col = "red")
+legend("topright", legend = c("Right Pectoral Fin", "Left Pectoral Fin"), col = c("blue", "red"), lty = 1)
+
+
+plot(master[,1], master[,15], col = "blue",type="l",xlab = "Time", ylab = "Y", main = "Tail Beating")
+# Fit a spline to the data
+tspline_fit <- smooth.spline(x = master[,1], y = master[,15])
+
+# Find the local maxima in the spline
+# Calculate the first derivative
+spline_deriv <- diff(tspline_fit$y) / diff(tspline_fit$x)
+
+peak_indices <- which(diff(sign(spline_deriv)) < 0) + 1
+
+# Refine the peaks using the threshold
+local_maxima_x <- numeric(0)
+local_maxima_y <- numeric(0)
+tums <- numeric(0)
+
+for (i in 1:length(peak_indices)) {
+  peak_index <- peak_indices[i]
+  # Check if the change in y between the peak and its neighbors is greater than the threshold
+  if (abs(tspline_fit$y[peak_index] - tspline_fit$y[peak_index - 1]) > 0.001 &&
+      abs(tspline_fit$y[peak_index] - tspline_fit$y[peak_index + 1]) > 0.001) {
+    local_maxima_x <- c(local_maxima_x, tspline_fit$x[peak_index])
+    local_maxima_y <- c(local_maxima_y, tspline_fit$y[peak_index])
+    tums <- c(tums, master[peak_index, 1])
+  }
+}
+lines(tspline_fit, col="red", lwd=1)
+for (i in 1:length(local_maxima_x)) {
+  abline(v = local_maxima_x[i], col = "green", lty = 2)
+}
+# Print or plot the local maxima
+maxcoord <- data.frame(X = local_maxima_x, Y = local_maxima_y, Tim = tums)
+lefttailavgamplitude <- mean(maxcoord$Y)
+ltaas <- var(maxcoord$Y)
+lmaxcoord <- maxcoord
+# Find the local minima in the spline
+peak_indices <- which(diff(sign(spline_deriv)) > 0) + 1
+
+# Refine the peaks using the threshold
+local_maxima_x <- numeric(0)
+local_maxima_y <- numeric(0)
+tums <- numeric(0)
+
+for (i in 1:length(peak_indices)) {
+  peak_index <- peak_indices[i]
+  # Check if the change in y between the peak and its neighbors is greater than the threshold
+  if (abs(tspline_fit$y[peak_index] - tspline_fit$y[peak_index - 1]) > 0.001 &&
+      abs(tspline_fit$y[peak_index] - tspline_fit$y[peak_index + 1]) > 0.001) {
+    local_maxima_x <- c(local_maxima_x, tspline_fit$x[peak_index])
+    local_maxima_y <- c(local_maxima_y, tspline_fit$y[peak_index])
+    tums <- c(tums, master[peak_index, 1])
+  }
+}
+lines(tspline_fit, col="red", lwd=1)
+for (i in 1:length(local_maxima_x)) {
+  abline(v = local_maxima_x[i], col = "orange", lty = 2)
+}
+# Print or plot the local maxima
+maxcoord <- data.frame(X = local_maxima_x, Y = local_maxima_y, Tim = tums)
+righttailavgamplitude <- abs(mean(maxcoord$Y))
+rtaas <- var(maxcoord$Y)
+rmaxcoord <- maxcoord
+
+# Define the coordinates of the polygon vertices as matrices
+x <- matrix(c(master[, 10], master[, 10], master[, 12], master[, 14], master[, 14]), ncol = 5) # x-coordinates
+zs <- rep(0, length(master[,1]))
+y <- matrix(c(zs, master[, 11], master[, 13], master[, 15], zs), ncol = 5) # y-coordinates
+# Initialize vector to store areas
+tareas <- numeric(nrow(x))
+
+# Perform shoelace formula for each set of coordinates
+for (i in 1:(nrow(x))) {
+  area <- 0.5 * ((x[i,1] * y[i,2] - x[i,2] * y[i,1])+(x[i,2] * y[i,3] - x[i,3] * y[i,2])
+                 +(x[i,3] * y[i,4] - x[i,4] * y[i,3])+(x[i,4] * y[i,5] - x[i,5] * y[i,4])
+                 +(x[i,5] * y[i,1] - x[i,1] * y[i,5]))
+  if (y[i,4] < 0){
+    tareas[i] <- -1*area
+  }
+  else{
+    tareas[i] <- area
+  }
+}
+# Calculate average and standard deviation
+tave <- mean(tareas)
+tstdev <- sd(tareas)
+
+# For graphing areas
+plot(master[,1], tareas, col = "blue",type="l", xlim=c(min(master[,1]),max(master[,1])),
+     xlab = "Time", ylab = "Y", main = "Tail Area")
+
+# Anterior angle calculation Snout-COM-Anal Fin
+antangle <- numeric(length(master[, 4]))
+for(i in 1:length(master[, 4])){
+  a <- c(master[i,2], master[i, 3])
+  b <- c(master[i,4], master[i, 5])
+  c <- c(master[i,12], master[i, 13])
+  ba <- a - b
+  bc <- c-b
+  cp <- ba[1] * bc[2] - ba[2] * bc[1]
+  dotp <- sum(ba * bc)
+  mba <- sqrt(sum(ba**2))
+  mbc <- sqrt(sum(bc**2))
+  cosa <- dotp / (mba*mbc)
+  angdeg <- acos(cosa) * (180/pi)
+  if(cp>0){
+    antangle[i] <- 180-angdeg
+  }
+  else{
+    antangle[i] <- angdeg-180
+
+  }
+}
+# Posterior angle calculation COM-Pelvic Fin-Tail
+postangle <- numeric(length(master[, 4]))
+for(i in 1:length(master[, 4])){
+  a <- c(master[i,4], master[i, 5])
+  b <- c(master[i,10], master[i, 11])
+  c <- c(master[i,14], master[i, 15])
+  ba <- a - b
+  bc <- c-b
+  cp <- ba[1] * bc[2] - ba[2] * bc[1]
+  dotp <- sum(ba * bc)
+  mba <- sqrt(sum(ba**2))
+  mbc <- sqrt(sum(bc**2))
+  cosa <- dotp / (mba*mbc)
+  angdeg <- acos(cosa) * (180/pi)
+  if(cp>0){
+    postangle[i] <- 180-angdeg
+  }
+  else{
+    postangle[i] <- angdeg-180
+
+  }
+}
+
+plot(master[,1], antangle, type = "l", col = "blue", 
+     xlab = "Time (au)", ylab = "Body Bending (degrees)", main = "Body Bending with Time")
+lines(master[,1], postangle, type = "l", col="red")
+legend("topright", legend = c("Anterior Bending", "Posterior Bending"), col = c("blue", "red"), lty = 1)
+antangm <- mean(antangle)
+antangv <- var(antangle)
+postangm <- mean(postangle)
+postangv <- var(postangle)
+
+```
+```{r}
+# Create a new plot
+plot(master[,2], master[,3], type="p",col = "dark red", xlim = c(-0.5, max(master[,14])), ylim = c(min(master[,7])-0.5, max(master[,9])),
+     xlab = "Horizontal Distance from Snout (cm)", ylab = "Vertical Distance from Snout (cm)")
+# Add additional lines
+abline(h = 0, lty = 2, col = "grey")
+lines(master[,4], master[,5], type="p",col = "dark red")
+lines(master[,6], master[,7], type="p",col = "dark red")
+lines(master[,8], master[,9], type="p",col = "dark red")
+lines(master[,10], master[,11], type="p",col = "dark red")
+lines(master[,12], master[,13], type="p",col = "dark red")
+lines(master[,14], master[,15], type="p",col = "dark red")
+```
+
+```{r}
+# Take in EMG data
+file_path <- file.choose()
+rd <-read.table(file_path, header = FALSE)
+# Crop to proper End time (Trigger)
+timeemg <- rd[,1]
+breaked <- lastbreak(timeemg)
+ch5 <- rd[breaked:length(timeemg),6]
+trigger <- trigfinder(ch5)
+
+timeemg <- rd[breaked:trigger,1]
+# Crop to proper start time
+# (Using Kinovea end and counting back 17.46 seconds)
+frames <- 17.46*4000
+if(frames > length(timeemg)) {
+  displacer <- timeemg[1]
+  timeemg <- timeemg - displacer
+  
+  displacer <- (frames - length(timeemg))/4000
+  timeemg <- timeemg + displacer
+}else {
+  timeemg <- timeemg[(length(timeemg)-frames):length(timeemg)]
+  displacer <- timeemg[1]
+  timeemg <- timeemg - displacer
+}
+
+# Splice data according to video
+for(i in timeemg){
+  if(i>=timek[1]){
+    trialstart <- which(timeemg==i)
+    break
+  }
+}
+
+timeemg <- timeemg[trialstart:length(timeemg)]
+for(k in timeemg){
+  if(k >= tail(timek, n=1)){
+    trialend <- match(k, timeemg)
+    break
+  }
+}
+timeemg <- timeemg[1:trialend]
+ch1 <- abs(rd[(trigger-length(timeemg)+1):trigger,2])
+ch2 <- abs(rd[(trigger-length(timeemg)+1):trigger,3])
+ch3 <- abs(rd[(trigger-length(timeemg)+1):trigger,4])
+ch4 <- abs(rd[(trigger-length(timeemg)+1):trigger,5])
+
+if(flipit){ # Need to flip to be in line with before
+  ph1 <- ch1
+  ch1 <- ch3
+  ch3 <- ph1
+  
+  ph2 <- ch2
+  ch2 <- ch4
+  ch4 <- ph2
+}
+
+ch1 <- ch1 / max(ch1, na.rm = TRUE)
+ch2 <- ch2 / max(ch2, na.rm = TRUE)
+ch3 <- ch3 / max(ch3, na.rm = TRUE)
+ch4 <- ch4 / max(ch4, na.rm = TRUE)
+
+threshold <- function(channel){
+  # Individually going through each channel and picking out threshold
+  plot(timeemg, channel, type="l", xlim=c(min(timeemg),(min(timeemg)+1.25)),yaxt = "n")
+  t1 <- timeemg
+  t1 <- t1[!is.na(as.numeric(channel))]  # Extract numeric values
+  ch1e <- channel[!is.na(as.numeric(channel))]  # Remove corresponding elements from the second vector
+  # Add more tick marks to the y-axis
+  acount <- round(seq(0.1 * max(ch1e), max(ch1e), by = 0.1 * max(ch1e)),3)
+  axis(2, at = acount, las = 1)
+  # Add horizontal dashed grid lines
+  grid(nx = 0, ny = 9, lty = "dashed", col = "cadetblue")
+}
+
+thr <- 0.2
+detectEMGBursts <- function(time, emg, primaryThreshold, secondaryThresholdFactor = 0.5, minPause = 45, lookBack = 20) {
+  # Remove NA and calculate the gradient of the EMG signal
+  validIndices <- !is.na(time) & !is.na(emg)
+  time <- time[validIndices]
+  emg <- emg[validIndices]
+  emgGradient <- c(0, diff(emg) / diff(time)) # Prepend 0 to maintain length alignment
+  
+  # Apply primary threshold
+  abovePrimaryThreshold <- ifelse(emg > primaryThreshold, 1, 0)
+  
+  # Refine with secondary threshold, considering noise floor
+  secondaryThreshold <- primaryThreshold * secondaryThresholdFactor
+  aboveSecondaryThreshold <- ifelse(emg > secondaryThreshold, 1, 0)
+  
+  diffAbovePrimaryThreshold <- diff(c(0, abovePrimaryThreshold, 0))
+  starts <- which(diffAbovePrimaryThreshold == 1)
+  ends <- which(diffAbovePrimaryThreshold == -1) - 1
+  
+  validStarts <- numeric(0)
+  validEnds <- numeric(0)
+  
+  for (i in 1:length(starts)) {
+    start <- starts[i]
+    end <- ends[i]
+    # Refine burst start using secondary threshold and gradient analysis
+    trueStart <- max(1, start - lookBack)
+    while(trueStart < start && (aboveSecondaryThreshold[trueStart] == 0 || emgGradient[trueStart] < 0)) {
+      trueStart <- trueStart + 1
+    }
+    
+    # Merge close bursts
+    if (i > 1 && abs(endprev - trueStart) < minPause) {
+      endprev <- end
+      next
+    }
+    
+    validStarts <- c(validStarts, trueStart)
+    if(i!= 1){
+      validEnds <- c(validEnds, endprev)
+    }
+    endprev <- end
+  }
+  validEnds <- c(validEnds, ends[length(ends)])
+  burstStartTimes <- time[validStarts]
+  burstEndTimes <- time[validEnds]
+  print(length(burstStartTimes))
+  # Gets rid of first and last burst
+  burstStartTimes <- burstStartTimes[-c(1, length(burstStartTimes))]
+  burstEndTimes <- burstEndTimes[-c(1, length(burstEndTimes))]
+  print(length(burstStartTimes))
+  for(i in length(burstStartTimes):1){
+    if(is.na(burstStartTimes[i]) || abs(burstStartTimes[i] - burstEndTimes[i])<0.015){
+      burstStartTimes <- burstStartTimes[-i]
+      burstEndTimes <- burstEndTimes[-i]
+    }
+  }
+  print(length(burstStartTimes))
+  if(length(burstStartTimes) != length(burstEndTimes)){
+    sprintf("Unequal: %s vs %s", length(burstStartTimes), length(burstEndTimes))
+  }
+  return(list(starts = burstStartTimes, ends = burstEndTimes))
+}
+
+
+one <- detectEMGBursts(timeemg, ch1, thr)
+onestarts <- one$starts
+onestops <- one$ends
+plot(timeemg, ch1, type="l", main="Channel 1",xlim=c(min(timeemg),(max(timeemg))))
+abline(v = onestarts, col = "red", lty = 1)
+abline(v = onestops, col = "blue", lty = 1)
+
+two <- detectEMGBursts(timeemg, ch2, 0.03)
+twosa <- two$starts
+twoso <- two$ends
+plot(timeemg, ch2, type="l", main="Channel 2",xlim=c(min(timeemg),(min(timeemg)+1.25)))
+abline(v = twosa, col = "red", lty = 1)
+abline(v = twoso, col = "blue", lty = 1)
+
+three <- detectEMGBursts(timeemg, ch3, thr)
+threesa <- three$starts
+threeso <- three$ends
+plot(timeemg, ch3, type="l", main="Channel 3",xlim=c(min(timeemg),(min(timeemg)+1.25)))
+abline(v = threesa, col = "red", lty = 1)
+abline(v = threeso, col = "blue", lty = 1)
+
+four <- detectEMGBursts(timeemg, ch4, thr)
+foursa <- four$starts
+fourso <- four$ends
+plot(timeemg, ch4, type="l", main="Channel 4",xlim=c(min(timeemg),(max(timeemg))))
+abline(v = foursa, col = "red", lty = 1)
+abline(v = fourso, col = "blue", lty = 1)
+
+# Timing calculations
+# From 1 to 2
+spur <- numeric(0)
+spar <- numeric(0)
+if (onestarts[1] < twosa[1]){
+  for(i in 1:length(onestops)){
+    spur <- c(spur, twosa[i]-onestops[i])
+    if(i!= 1){
+      spar <- c(spar, onestarts[i]-twoso[i])
+    }
+  }
+}else{
+  for(i in 1:length(twoso)){
+    spur <- c(spur, onestarts[i]-twoso[i])
+    if(i!= 1){
+      spar <- c(spar, twosa[i]-onestops[i])
+    }
+  }
+}
+mninitl <- mean(spur, na.rm = TRUE)
+mnseconl <- mean(spar, na.rm = TRUE)
+vrinitl <- var(spur, na.rm = TRUE)
+vrseconl <- var(spar, na.rm = TRUE)
+if (onestarts[1] < twosa[1]){
+  rfinitl <- length(onestarts)/(onestarts[length(onestarts)]-onestarts[1])
+  rfseconl <-length(twosa)/(twosa[length(twosa)]-twosa[1])
+} else{
+  rfinitl <-length(twosa)/(twosa[length(twosa)]-twosa[1])
+  rfseconl <-length(onestarts)/(onestarts[length(onestarts)]-onestarts[1])
+}
+
+# From 1 to 3
+spur <- numeric(0)
+spar <- numeric(0)
+if (onestarts[1] < threesa[1]){
+  for(i in 1:length(onestops)){
+    spur <- c(spur, threesa[i]-onestops[i])
+    if(i != 1){
+      spar <- c(spar, onestarts[i]-threeso[i])
+    }
+  }
+} else {
+  for(i in 1:length(threeso)){
+    spur <- c(spur, onestarts[i]-threeso[i])
+    if(i != 1){
+      spar <- c(spar, threesa[i]-onestops[i])
+    }
+  }
+}
+mninitm <- mean(spur, na.rm = TRUE)
+mnseconm <- mean(spar, na.rm = TRUE)
+vrinitm <- var(spur, na.rm = TRUE)
+vrseconm <- var(spar, na.rm = TRUE)
+if (onestarts[1] < threesa[1]){
+  rfinitm <- length(onestarts)/(onestarts[length(onestarts)]-onestarts[1])
+  rfseconm <- length(threesa)/(threesa[length(threesa)]-threesa[1])
+} else {
+  rfinitm <- length(threesa)/(threesa[length(threesa)]-threesa[1])
+  rfseconm <- length(onestarts)/(onestarts[length(onestarts)]-onestarts[1])
+}
+
+# From 2 to 4
+spur <- numeric(0)
+spar <- numeric(0)
+if (twosa[1] < foursa[1]){
+  for(i in 1:length(twoso)){
+    spur <- c(spur, foursa[i]-twoso[i])
+    if(i != 1){
+      spar <- c(spar, twosa[i]-fourso[i])
+    }
+  }
+} else {
+  for(i in 1:length(fourso)){
+    spur <- c(spur, twosa[i]-fourso[i])
+    if(i != 1){
+      spar <- c(spar, foursa[i]-twoso[i])
+    }
+  }
+}
+mninitn <- mean(spur, na.rm = TRUE)
+mnseconn <- mean(spar, na.rm = TRUE)
+vrinitn <- var(spur, na.rm = TRUE)
+vrseconn <- var(spar, na.rm = TRUE)
+if (twosa[1] < foursa[1]){
+  rfinitn <- length(twosa)/(twosa[length(twosa)]-twosa[1])
+  rfseconn <- length(foursa)/(foursa[length(foursa)]-foursa[1])
+} else {
+  rfinitn <- length(foursa)/(foursa[length(foursa)]-foursa[1])
+  rfseconn <- length(twosa)/(twosa[length(twosa)]-twosa[1])
+}
+
+# From 3 to 4
+spur <- numeric(0)
+spar <- numeric(0)
+if (threesa[1] < foursa[1]){
+  for(i in 1:length(threeso)){
+      spur <- c(spur, foursa[i]-threeso[i])
+      if(i != 1){
+        spar <- c(spar, threesa[i]-fourso[i])
+        }
+    }
+} else {
+  for(i in 1:length(fourso)){
+    spur <- c(spur, threesa[i]-fourso[i])
+    if(i != 1){
+      spar <- c(spar, foursa[i]-threeso[i])
+    }
+  }
+}
+mninito <- mean(spur, na.rm = TRUE)
+mnsecono <- mean(spar, na.rm = TRUE)
+vrinito <- var(spur, na.rm = TRUE)
+vrsecono <- var(spar, na.rm = TRUE)
+if (threesa[1] < foursa[1]){
+  rfinito <- length(threesa)/(threesa[length(threesa)]-threesa[1])
+  rfsecono <- length(foursa)/(foursa[length(foursa)]-foursa[1])
+} else {
+  rfinito <- length(foursa)/(foursa[length(foursa)]-foursa[1])
+  rfsecono <- length(threesa)/(threesa[length(threesa)]-threesa[1])
+}
+
+statter <- function(ta, to, ch) {
+  # Check if input vectors are of equal length
+  if(length(ta) != length(to)) {
+    stop("Start points and end points vectors must have the same length.")
+  }
+  # Initialize variables to store cumulative statistics
+  total_peak <- 0
+  total_duration <- 0
+  total_area <- 0
+  
+  pks<- numeric(0)
+  drn <- numeric(0)
+  ara <- numeric(0)
+  # Loop over each burst
+  for(i in 1:length(ta)) {
+    # Find the indices in timeemg closest to the current ta and to values
+    start_index <- which(timeemg == ta[i])
+    end_index <- which(timeemg == to[i])
+    # Extract the burst data from the ch channel using these indices
+    burst <- ch[start_index:end_index]
+
+    # Calculate peak value, duration, and area for the current burst
+    peak <- max(burst, na.rm = TRUE)
+    duration <- to[i] - ta[i] + 1
+    area <- sum(burst * diff(c(timeemg[start_index:end_index], to[i])), na.rm = TRUE) # Approximate area under the curve
+    
+    # Add the current burst's statistics to the cumulative statistics
+    total_peak <- total_peak + peak
+    total_duration <- total_duration + duration
+    total_area <- total_area + area
+    pks <- c(pks, peak)
+    drn <- c(drn, duration)
+    ara <- c(ara, area)
+  }
+  
+  # Calculate averages
+  avg_peak <- total_peak / length(ta)
+  avg_duration <- total_duration / length(ta)
+  avg_area <- total_area / length(ta)
+  
+  # Return a list containing the average statistics
+  return(list(apeak = avg_peak, aduration = avg_duration, aarea = avg_area,
+              peak= pks, duration=drn, area=ara))
+}
+onenc <- statter(onestarts, onestops, ch1)
+twonc <- statter(twosa, twoso, ch2)
+threenc <- statter(threesa, threeso, ch3)
+fournc <- statter(foursa, fourso, ch4)
+```
+```{r}
+print(ch2)
+print(length(timeemg))
+plot(timeemg, ch1, type="l", main="Channel 2")
+```
+```{r}
+plot(timeemg, ch2, type="l", xlim=c(min(timeemg),max(timeemg)),
+     xlab="Trial Time (s)", ylab="Normalized EMG Signal")
+abline(v = twosa, col = "red", lty = 1)
+abline(v = twoso, col = "blue", lty = 1)
+legend("topright", # Position of the legend
+       legend = c("Rectified and \nNormalized EMG \nRecording", "Predicted \nBurst Starts","Predicted \nBurst Ends"), # Text for each line
+       col = c("black", "red", "blue"), # Color for each line
+       lwd = c(2, 2, 2),
+       cex = 0.7, # Character expansion: smaller value for smaller text
+       pt.cex = 1,                # Point/line symbol expansion
+       y.intersp = 0.7)
+
+```
+
+```{r}
+plot(timeemg, ch1, type ="l", ylim= c(-2.5,0.5))
+lines(spline_fit)
+
+# Initialize with zeros for each point in 'timeemg'
+opeak <- numeric(length(timeemg))
+odur <- numeric(length(timeemg))
+oare <- numeric(length(timeemg))
+# Loop over each time point in 'timeemg'
+for(i in seq_along(timeemg)) {
+  # Check if this time point falls within any burst interval
+  inBurst <- FALSE  # Initialize as FALSE for each time point
+  for(j in seq_along(onestarts)) {
+    if(timeemg[i] >= onestarts[j] && timeemg[i] <= onestops[j]) {
+      opeak[i] <- onenc$peak[j]  # Assign peak value
+      odur[i] <- onenc$duration[j]
+      oare[i] <- onenc$area[j]
+      inBurst <- TRUE  # Mark as found within a burst
+      break  # Exit the loop once a match is found
+    }
+  }
+  # If not within any burst, leave opeak[i] as 0 (already initialized to 0)
+}
+
+preds <- spline_fit$y[timeemg]
+lines(timeemg, preds, col="green")
+df <- data.frame(
+  timeemg = timeemg,
+  predicted = preds,
+  peak = opeak,
+  dur = odur,
+  area = oare
+)
+
+# Example visualization for 'peak'
+ggplot(df, aes(x = timeemg, y = predicted)) + 
+  geom_line(aes(color = as.factor(peak))) + 
+  labs(color = "Peak") +
+  ggtitle("Effect of Peak on Spline Fit") +
+  xlab("Time") + ylab("Predicted Value")
+
+# Visualization for 'duration'
+ggplot(df, aes(x = timeemg, y = predicted)) + 
+  geom_line(aes(color = as.factor(dur))) + 
+  labs(color = "Duration") +
+  ggtitle("Effect of Duration on Spline Fit") +
+  xlab("Time") + ylab("Predicted Value")
+
+# Visualization for 'area'
+ggplot(df, aes(x = timeemg, y = predicted)) + 
+  geom_line(aes(color = as.factor(area))) + 
+  labs(color = "Area") +
+  ggtitle("Effect of Area on Spline Fit") +
+  xlab("Time") + ylab("Predicted Value")
+```
+```{r}
+par1t <- c()
+par1y <- c()
+par1p <- c()
+par1d <- c()
+par1a <- c()
+par2t <- c()
+par2y <- c()
+par2p <- c()
+par2d <- c()
+par2a <- c()
+par3t <- c()
+par3y <- c()
+par3p <- c()
+par3d <- c()
+par3a <- c()
+par4t <- c()
+par4y <- c()
+par4p <- c()
+par4d <- c()
+par4a <- c()
+
+for(i in lmaxcoord$Tim){
+  for(j in 1:length(onestarts)){
+    if(onestarts[j]<i && i<onestops[j]){
+      par1t <- c(par1t, i)
+      par1y <- c(par1y, predict(tspline_fit, i)$y)
+      par1p <- c(par1p, onenc$peak[j])
+      par1d <- c(par1d, onenc$duration[j])
+      par1a <- c(par1a, onenc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(twosa)){
+    if(twosa[j]<i && i<twoso[j]){
+      par2t <- c(par2t, i)
+      par2y <- c(par2y, predict(tspline_fit, i)$y)
+      par2p <- c(par2p, twonc$peak[j])
+      par2d <- c(par2d, twonc$duration[j])
+      par2a <- c(par2a, twonc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(threesa)){
+    if(threesa[j]<i && i<threeso[j]){
+      par3t <- c(par3t, i)
+      par3y <- c(par3y, predict(tspline_fit, i)$y)
+      par3p <- c(par3p, threenc$peak[j])
+      par3d <- c(par3d, threenc$duration[j])
+      par3a <- c(par3a, threenc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(foursa)){
+    if(foursa[j]<i && i<fourso[j]){
+      par4t <- c(par4t, i)
+      par4y <- c(par4y, predict(tspline_fit, i)$y)
+      par4p <- c(par4p, fournc$peak[j])
+      par4d <- c(par4d, fournc$duration[j])
+      par4a <- c(par4a, fournc$area[j])
+      next
+    }
+  }
+}
+
+for(i in rmaxcoord$Tim){
+  for(j in 1:length(onestarts)){
+    if(onestarts[j]<i && i<onestops[j]){
+      par1t <- c(par1t, i)
+      par1y <- c(par1y, predict(tspline_fit, i)$y)
+      par1p <- c(par1p, onenc$peak[j])
+      par1d <- c(par1d, onenc$duration[j])
+      par1a <- c(par1a, onenc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(twosa)){
+    if(twosa[j]<i && i<twoso[j]){
+      par2t <- c(par2t, i)
+      par2y <- c(par2y, predict(tspline_fit, i)$y)
+      par2p <- c(par2p, twonc$peak[j])
+      par2d <- c(par2d, twonc$duration[j])
+      par2a <- c(par2a, twonc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(threesa)){
+    if(threesa[j]<i && i<threeso[j]){
+      par3t <- c(par3t, i)
+      par3y <- c(par3y, predict(tspline_fit, i)$y)
+      par3p <- c(par3p, threenc$peak[j])
+      par3d <- c(par3d, threenc$duration[j])
+      par3a <- c(par3a, threenc$area[j])
+      next
+    }
+  }
+  for(j in 1:length(foursa)){
+    if(foursa[j]<i && i<fourso[j]){
+      par4t <- c(par4t, i)
+      par4y <- c(par4y, predict(tspline_fit, i)$y)
+      par4p <- c(par4p, fournc$peak[j])
+      par4d <- c(par4d, fournc$duration[j])
+      par4a <- c(par4a, fournc$area[j])
+      next
+    }
+  }
+}
+co1 <- cor(par1y, par1d)
+co2 <- cor(par2y, par2d)
+co3 <- cor(par3y, par3d)
+co4 <- cor(par4y, par4d)
+
+plot(par1y, par1d, type="p",main = "Electrode Bursts vs. Tail Beat", 
+     xlab = "Tail Beat Amplitude", ylab = "Burst Duration", col = "blue")
+abline(lm(par1d~par1y), col="blue")
+
+lines(par2y, par2d, type="p", col = "red")
+abline(lm(par2d~par2y), col="red")
+
+lines(par3y, par3d, type="p", col = "green")
+abline(lm(par3d~par3y), col="green")
+
+lines(par4y, par4d, type="p", col = "orange")
+abline(lm(par4d~par4y), col="orange")
+
+legend("topright", legend = c("Electrode 1", 'Electrode 2', 'Electrode 3', 'Electrode 4'),
+       col = c("blue", "red", "green", "orange"), lty = 1)
+```
+```{r}
+library(Kendall)
+library(mgcv) 
+
+# Function to process the vector
+process_vector <- function(v, n) {
+  l <- length(v)
+  result <- numeric(ceiling(l / n))
+  for (i in seq(1, l, by=n)) {
+    chunk <- v[i:min(i+n-1, l)]
+    result[ceiling(i / n)] <- max(chunk)
+  }
+  return(result)
+}
+
+vals <- length(ch1)%/%length(antangle)
+# Apply the function to our vector with chunks of 17
+result <- process_vector(ch1, vals)
+mantangle <- antangle
+while(length(mantangle) != length(result)){
+  mantangle <- c(mantangle, tail(mantangle, 1))
+
+}
+rtime <- process_vector(timeemg, vals)
+spline_fit <- smooth.spline(x = rtime, y = result)
+#plot(spline_fit)
+
+g <- gam(spline_fit$y ~ s(mantangle))
+plot(g,scheme=3, xlab="Anterior Body Bending Angle", ylab="Rectified Spline Fit Prediction")
+legend("topright", # Position of the legend
+       legend = c("Estimated Effect", "95% CI"), # Text for each line
+       col = c("black", "black"), # Color for each line
+       lty = c(1, 2), # Line type: 1 = solid (for estimated effect), 2 = dashed (for 95% CI)
+       lwd = c(2, 2),
+       cex = 0.8, # Character expansion: smaller value for smaller text
+       pt.cex = 0.8,                # Point/line symbol expansion
+       y.intersp = 0.7)
+
+cd <- summary(g)
+print(cd$s.table[,4])
+
+vals <- length(ch3)%/%length(antangle)
+# Apply the function to our vector with chunks of 17
+result <- process_vector(ch3, vals)
+mantangle <- antangle
+while(length(mantangle) != length(result)){
+  mantangle <- c(mantangle, tail(mantangle, 1))
+
+}
+rtime <- process_vector(timeemg, vals)
+spline_fit <- smooth.spline(x = rtime, y = result)
+#plot(spline_fit)
+
+g <- gam(spline_fit$y ~ s(mantangle))
+plot(g,scheme=2)
+cd <- summary(g)
+print(cd$s.table[,4])
+
+vals <- length(ch2)%/%length(postangle)
+# Apply the function to our vector with chunks of 17
+result <- process_vector(ch2, vals)
+mantangle <- postangle
+while(length(mantangle) != length(result)){
+  mantangle <- c(mantangle, tail(mantangle, 1))
+}
+rtime <- process_vector(timeemg, vals)
+spline_fit <- smooth.spline(x = rtime, y = result)
+#plot(spline_fit)
+
+g <- gam(spline_fit$y ~ s(mantangle))
+plot(g,scheme=2)
+cd <- summary(g)
+print(cd$s.table[,4])
+
+vals <- length(ch4)%/%length(postangle)
+# Apply the function to our vector with chunks of 17
+result <- process_vector(ch4, vals)
+mantangle <- postangle
+while(length(mantangle) != length(result)){
+  mantangle <- c(mantangle, tail(mantangle, 1))
+
+}
+rtime <- process_vector(timeemg, vals)
+spline_fit <- smooth.spline(x = rtime, y = result)
+#plot(spline_fit)
+
+g <- gam(spline_fit$y ~ s(mantangle))
+plot(g,scheme=2)
+cd <- summary(g)
+print(cd$s.table[,4])
+```
+```{r}
+print("BEHAVIORAL")
+sprintf("Right PF Avg AMPLITUDE: %s", rightpfavgamplitude)
+sprintf("AREA encompassed: %s, var: %s", rave, rvar)
+sprintf("Left PF Avg AMPLITUDE: %s", leftpfavgamplitude)
+sprintf("AREA encompassed: %s, var: %s", lave, lvar)
+print("")
+sprintf("Rightwards tail AMP: %s, var: %s", righttailavgamplitude, rtaas)
+sprintf("Leftwards tail AMP: %s, var: %s", lefttailavgamplitude, ltaas)
+sprintf("Tail Area: %s, stddev: %s", tave, tstdev)
+print("")
+sprintf("Anterior Body Bend Angle: %s, var: %s", antangm, antangv)
+sprintf("Posterior Body Bend Angle: %s, var: %s", postangm, postangv)
+print("")
+print(c(rightpfavgamplitude, leftpfavgamplitude, rave, rvar, lave, lvar, lefttailavgamplitude, ltaas, righttailavgamplitude, rtaas, tave, tstdev, antangm, antangv, postangm, postangv))
+
+print("NEURAL")
+sprintf("IPSILATERAL LEFT Beat delays: %s vs. %s", mninitl, mnseconl)
+sprintf("Variance on it: %s vs. %s. ROF: %s vs. %s", vrinitl, vrseconl, rfinitl, rfseconl)
+print("")
+sprintf("IPSILATERAL RIGHT Beat delays: %s vs. %s", mninito, mnsecono)
+sprintf("Variance on it: %s vs. %s. ROF: %s vs. %s", vrinito, vrsecono, rfinito, rfsecono)
+print("")
+sprintf("CONTRALATERAL ANTERIOR Beat delays: %s vs. %s", mninitm, mnseconm)
+sprintf("Variance on it: %s vs. %s. ROF: %s vs. %s", vrinitm, vrseconm, rfinitm, rfseconm)
+print("")
+sprintf("CONTRALATERAL POSTERIOR Beat delays: %s vs. %s", mninitn, mnseconn)
+sprintf("Variance on it: %s vs. %s. ROF: %s vs. %s", vrinitn, vrseconn, rfinitn, rfseconn)
+
+print("")
+sprintf("COUNT Ch1: %s Ch2: %s Ch3: %s Ch4: %s", length(onestarts), length(twosa), length(threesa), length(foursa))
+sprintf("Ch1 Peak: %s Duration: %s Area: %s", onenc$apeak, onenc$aduration, onenc$aarea)
+sprintf("Ch2 Peak: %s Duration: %s Area: %s", twonc$apeak, twonc$aduration, twonc$aarea)
+sprintf("Ch3 Peak: %s Duration: %s Area: %s", threenc$apeak, threenc$aduration, threenc$aarea)
+sprintf("Ch4 Peak: %s Duration: %s Area: %s", fournc$apeak, fournc$aduration, fournc$aarea)
+
+print(c(mninitl, vrinitl, mnseconl, vrseconl, mninito, vrinito, mnsecono, vrsecono, mninitm, vrinitm, mnseconm, vrseconm, mninitn, vrinitn, mnseconn, vrseconn, onenc$apeak, onenc$aduration, onenc$aarea, length(onestarts), twonc$apeak, twonc$aduration, twonc$aarea, length(twosa), threenc$apeak, threenc$aduration, threenc$aarea, length(threesa), fournc$apeak, fournc$aduration, fournc$aarea, length(foursa)))
+
+sprintf("CorrCoeff Ch1 %s, Ch2 %s, Ch3 %s, Ch4 %s", co1, co2, co3, co4)
+print(c(co1, co2, co3, co4))
+```
